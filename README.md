@@ -1,3 +1,5 @@
+![Mic Mute Button](20260305_121607247_iOS%20Small.png)
+
 # Mic Mute Button
 
 A minimal native macOS app to toggle microphone mute with a single click. No Xcode required — just a single Swift source file compiled with `swiftc`.
