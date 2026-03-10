@@ -92,7 +92,7 @@ final class CircleButton: NSView {
         path.stroke()
 
         let label = isMuted ? "󰍭" : "󰍬"
-        let iconFont = NSFont(name: "MesloLGSNF-Bold", size: 72) ?? NSFont.boldSystemFont(ofSize: 72)
+        let iconFont = NSFont(name: "MesloLGSNF-Bold", size: 56) ?? NSFont.boldSystemFont(ofSize: 56)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: iconFont,
             .foregroundColor: NSColor.black
@@ -129,7 +129,7 @@ final class MainViewController: NSViewController {
     private var devices: [(id: AudioDeviceID, name: String)] = []
 
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 400))
+        view = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 300))
         view.wantsLayer = true
         view.layer?.backgroundColor = NSColor(calibratedWhite: 0.76, alpha: 1).cgColor
     }
@@ -151,9 +151,9 @@ final class MainViewController: NSViewController {
         view.addSubview(pill)
         NSLayoutConstraint.activate([
             pill.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            pill.topAnchor.constraint(equalTo: view.topAnchor, constant: 60),
-            pill.widthAnchor.constraint(equalToConstant: 280),
-            pill.heightAnchor.constraint(equalToConstant: 44)
+            pill.topAnchor.constraint(equalTo: view.topAnchor, constant: 40),
+            pill.widthAnchor.constraint(equalToConstant: 220),
+            pill.heightAnchor.constraint(equalToConstant: 40)
         ])
 
         popup.translatesAutoresizingMaskIntoConstraints = false
@@ -176,9 +176,9 @@ final class MainViewController: NSViewController {
         view.addSubview(circle)
         NSLayoutConstraint.activate([
             circle.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            circle.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 60),
-            circle.widthAnchor.constraint(equalToConstant: 180),
-            circle.heightAnchor.constraint(equalToConstant: 180)
+            circle.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 40),
+            circle.widthAnchor.constraint(equalToConstant: 140),
+            circle.heightAnchor.constraint(equalToConstant: 140)
         ])
     }
 
@@ -227,7 +227,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = mainMenu
 
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 300),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
