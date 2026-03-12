@@ -54,8 +54,19 @@ func getMuteState(_ deviceID: AudioDeviceID) -> Bool {
     )
     var muted: UInt32 = 0
     var size = UInt32(MemoryLayout<UInt32>.size)
-    AudioObjectGetPropertyData(deviceID, &prop, 0, nil, &size, &muted)
-    return muted == 1
+    if AudioObjectGetPropertyData(deviceID, &prop, 0, nil, &size, &muted) == noErr {
+        return muted == 1
+    }
+    // Fallback for devices that don't support hardware mute: treat near-zero volume as muted
+    var volProp = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyVolumeScalar,
+        mScope: kAudioObjectPropertyScopeInput,
+        mElement: kAudioObjectPropertyElementMain
+    )
+    var volume: Float32 = 1.0
+    var volSize = UInt32(MemoryLayout<Float32>.size)
+    AudioObjectGetPropertyData(deviceID, &volProp, 0, nil, &volSize, &volume)
+    return volume < 0.01
 }
 
 @discardableResult
@@ -65,9 +76,23 @@ func setMuteState(_ deviceID: AudioDeviceID, muted: Bool) -> OSStatus {
         mScope: kAudioObjectPropertyScopeInput,
         mElement: kAudioObjectPropertyElementMain
     )
-    var value: UInt32 = muted ? 1 : 0
+    // Check if hardware mute is supported and settable
+    var settable: DarwinBoolean = false
+    if AudioObjectIsPropertySettable(deviceID, &prop, &settable) == noErr, settable.boolValue {
+        var value: UInt32 = muted ? 1 : 0
+        return AudioObjectSetPropertyData(
+            deviceID, &prop, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value
+        )
+    }
+    // Fallback for external mics that don't support hardware mute: use volume scalar
+    var volProp = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyVolumeScalar,
+        mScope: kAudioObjectPropertyScopeInput,
+        mElement: kAudioObjectPropertyElementMain
+    )
+    var volume: Float32 = muted ? 0.0 : 1.0
     return AudioObjectSetPropertyData(
-        deviceID, &prop, 0, nil, UInt32(MemoryLayout<UInt32>.size), &value
+        deviceID, &volProp, 0, nil, UInt32(MemoryLayout<Float32>.size), &volume
     )
 }
 
