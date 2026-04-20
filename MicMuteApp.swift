@@ -144,7 +144,7 @@ final class MenubarController: NSObject, NSMenuDelegate {
 
     // MARK: Menu
 
-    @objc private func toggleMenu(_ sender: NSStatusBarButton) {
+    @objc private func toggleMenu(_ sender: Any?) {
         let menu = buildMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -188,7 +188,11 @@ final class MenubarController: NSObject, NSMenuDelegate {
         let isMuted = selectedDeviceID.map { getMuteState($0) } ?? false
         let toggleTitle = isMuted ? "\u{F036D}  Muted — click to unmute" : "\u{F036C}  Unmuted — click to mute"
         let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(toggleMute), keyEquivalent: "")
-        toggleItem.target = self
+        if selectedDeviceID != nil {
+            toggleItem.target = self
+        } else {
+            toggleItem.isEnabled = false
+        }
         menu.addItem(toggleItem)
 
         menu.addItem(.separator())
