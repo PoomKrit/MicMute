@@ -99,35 +99,12 @@ func setMuteState(_ deviceID: AudioDeviceID, muted: Bool) -> OSStatus {
 // MARK: - App Delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    var window: NSWindow!
+    private var menubarController: MenubarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Minimal menu (enables Cmd+Q)
-        let appMenu = NSMenu()
-        appMenu.addItem(
-            withTitle: "Quit Mic Mute",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
-        )
-        let appMenuItem = NSMenuItem()
-        appMenuItem.submenu = appMenu
-        let mainMenu = NSMenu()
-        mainMenu.addItem(appMenuItem)
-        NSApp.mainMenu = mainMenu
-
-        window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 300),
-            styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Mic Mute"
-        window.contentViewController = MainViewController()
-        window.center()
-        window.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.accessory)
+        menubarController = MenubarController()
     }
-
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
 
 // MARK: - Entry Point
@@ -135,6 +112,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 let app = NSApplication.shared
 let appDelegate = AppDelegate()
 app.delegate = appDelegate
-app.setActivationPolicy(.regular)
 app.activate(ignoringOtherApps: true)
 app.run()
