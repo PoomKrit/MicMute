@@ -96,6 +96,123 @@ func setMuteState(_ deviceID: AudioDeviceID, muted: Bool) -> OSStatus {
     )
 }
 
+// MARK: - Menubar Controller
+
+final class MenubarController: NSObject {
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private var selectedDeviceID: AudioDeviceID?
+
+    override init() {
+        super.init()
+        updateIcon()
+        if let button = statusItem.button {
+            button.target = self
+            button.action = #selector(toggleMenu(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+    }
+
+    // MARK: Icon
+
+    private func makeIcon(muted: Bool) -> NSImage? {
+        let glyph = muted ? "\u{F036D}" : "\u{F036C}"  // 󰍭 / 󰍬
+        let font = NSFont(name: "MesloLGSNF-Bold", size: 16) ?? NSFont.systemFont(ofSize: 16)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor
+        ]
+        let str = NSAttributedString(string: glyph, attributes: attrs)
+        let size = str.size()
+        let image = NSImage(size: size)
+        image.lockFocus()
+        str.draw(at: .zero)
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
+    }
+
+    private func updateIcon() {
+        let muted: Bool
+        if let id = selectedDeviceID {
+            muted = getMuteState(id)
+        } else {
+            muted = false
+        }
+        statusItem.button?.image = makeIcon(muted: muted)
+    }
+
+    // MARK: Menu
+
+    @objc private func toggleMenu(_ sender: NSStatusBarButton) {
+        let menu = buildMenu()
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    private func buildMenu() -> NSMenu {
+        let menu = NSMenu()
+
+        // Device section label
+        let label = NSMenuItem(title: "Input Device", action: nil, keyEquivalent: "")
+        label.isEnabled = false
+        menu.addItem(label)
+
+        // Device list
+        let devices = listInputDevices()
+        if selectedDeviceID == nil {
+            selectedDeviceID = devices.first?.id
+        }
+        for device in devices {
+            let item = NSMenuItem(
+                title: device.name,
+                action: #selector(selectDevice(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = device.id as AnyObject
+            item.state = device.id == selectedDeviceID ? .on : .off
+            menu.addItem(item)
+        }
+
+        menu.addItem(.separator())
+
+        // Mute toggle item
+        let isMuted = selectedDeviceID.map { getMuteState($0) } ?? false
+        let toggleTitle = isMuted ? "\u{F036D}  Muted — click to unmute" : "\u{F036C}  Unmuted — click to mute"
+        let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(toggleMute), keyEquivalent: "")
+        toggleItem.target = self
+        menu.addItem(toggleItem)
+
+        menu.addItem(.separator())
+
+        // Quit
+        let quit = NSMenuItem(
+            title: "Quit Mic Mute",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        menu.addItem(quit)
+
+        return menu
+    }
+
+    // MARK: Actions
+
+    @objc private func selectDevice(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? AudioDeviceID else { return }
+        selectedDeviceID = id
+        updateIcon()
+    }
+
+    @objc private func toggleMute() {
+        guard let id = selectedDeviceID else { return }
+        let newState = !getMuteState(id)
+        setMuteState(id, muted: newState)
+        updateIcon()
+    }
+}
+
 // MARK: - App Delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
