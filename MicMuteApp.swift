@@ -98,12 +98,13 @@ func setMuteState(_ deviceID: AudioDeviceID, muted: Bool) -> OSStatus {
 
 // MARK: - Menubar Controller
 
-final class MenubarController: NSObject {
+final class MenubarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private var selectedDeviceID: AudioDeviceID?
 
     override init() {
         super.init()
+        selectedDeviceID = listInputDevices().first?.id
         updateIcon()
         if let button = statusItem.button {
             button.target = self
@@ -145,8 +146,12 @@ final class MenubarController: NSObject {
 
     @objc private func toggleMenu(_ sender: NSStatusBarButton) {
         let menu = buildMenu()
+        menu.delegate = self
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
         statusItem.menu = nil
     }
 
@@ -160,9 +165,6 @@ final class MenubarController: NSObject {
 
         // Device list
         let devices = listInputDevices()
-        if selectedDeviceID == nil {
-            selectedDeviceID = devices.first?.id
-        }
         for device in devices {
             let item = NSMenuItem(
                 title: device.name,
@@ -173,6 +175,11 @@ final class MenubarController: NSObject {
             item.representedObject = device.id as AnyObject
             item.state = device.id == selectedDeviceID ? .on : .off
             menu.addItem(item)
+        }
+        if devices.isEmpty {
+            let none = NSMenuItem(title: "No input devices found", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            menu.addItem(none)
         }
 
         menu.addItem(.separator())
@@ -208,8 +215,9 @@ final class MenubarController: NSObject {
     @objc private func toggleMute() {
         guard let id = selectedDeviceID else { return }
         let newState = !getMuteState(id)
-        setMuteState(id, muted: newState)
-        updateIcon()
+        if setMuteState(id, muted: newState) == noErr {
+            updateIcon()
+        }
     }
 }
 
