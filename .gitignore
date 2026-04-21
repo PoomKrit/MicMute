@@ -33,5 +33,10 @@ Temporary Items
 # iCloud generated files
 *.icloud
 
+# Compiled file
+MicMuteApp
+MicMuteApp.app
+
+
 # End of https://www.toptal.com/developers/gitignore/api/macos
 
