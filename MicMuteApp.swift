@@ -96,27 +96,179 @@ func setMuteState(_ deviceID: AudioDeviceID, muted: Bool) -> OSStatus {
     )
 }
 
+// MARK: - Popover View Controller
+
+final class PopoverViewController: NSViewController {
+    var onDeviceSelected: ((AudioDeviceID) -> Void)?
+    var onMuteToggled: (() -> Void)?
+    var onQuit: (() -> Void)?
+
+    private var selectedDeviceID: AudioDeviceID?
+    private var devices: [(id: AudioDeviceID, name: String)] = []
+
+    private let stackView = NSStackView()
+    private let muteButton = NSButton()
+
+    override func loadView() {
+        view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 0))
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        stackView.orientation = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 4
+        stackView.edgeInsets = NSEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stackView)
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            stackView.topAnchor.constraint(equalTo: view.topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
+        rebuild()
+    }
+
+    func update(devices: [(id: AudioDeviceID, name: String)], selectedDeviceID: AudioDeviceID?) {
+        self.devices = devices
+        self.selectedDeviceID = selectedDeviceID
+        if isViewLoaded { rebuild() }
+    }
+
+    private func rebuild() {
+        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        // Section label
+        let label = NSTextField(labelWithString: "INPUT DEVICE")
+        label.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
+        label.textColor = .secondaryLabelColor
+        stackView.addArrangedSubview(label)
+
+        // Device buttons
+        if devices.isEmpty {
+            let none = NSTextField(labelWithString: "No input devices found")
+            none.font = NSFont.systemFont(ofSize: 13)
+            none.textColor = .secondaryLabelColor
+            stackView.addArrangedSubview(none)
+        } else {
+            for device in devices {
+                let isSelected = device.id == selectedDeviceID
+                let title = isSelected ? "✓  \(device.name)" : "     \(device.name)"
+                let btn = NSButton(title: title, target: self, action: #selector(deviceClicked(_:)))
+                btn.tag = Int(device.id)
+                btn.bezelStyle = .roundRect
+                btn.setButtonType(.momentaryPushIn)
+                btn.font = NSFont.systemFont(ofSize: 13, weight: isSelected ? .semibold : .regular)
+                btn.contentTintColor = isSelected ? .controlAccentColor : .labelColor
+                btn.translatesAutoresizingMaskIntoConstraints = false
+                btn.widthAnchor.constraint(equalToConstant: 228).isActive = true
+                stackView.addArrangedSubview(btn)
+            }
+        }
+
+        // Divider
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        divider.widthAnchor.constraint(equalToConstant: 228).isActive = true
+        stackView.addArrangedSubview(divider)
+
+        // Mute button
+        let isMuted = selectedDeviceID.map { getMuteState($0) } ?? false
+        let muteTitle = isMuted ? "\u{F036D}  Muted — click to unmute" : "\u{F036C}  Unmuted — click to mute"
+        muteButton.title = muteTitle
+        muteButton.bezelStyle = .roundRect
+        muteButton.setButtonType(.momentaryPushIn)
+        muteButton.font = NSFont.systemFont(ofSize: 13)
+        muteButton.contentTintColor = isMuted ? .systemRed : .systemGreen
+        muteButton.target = self
+        muteButton.action = #selector(muteClicked)
+        muteButton.isEnabled = selectedDeviceID != nil
+        muteButton.translatesAutoresizingMaskIntoConstraints = false
+        muteButton.widthAnchor.constraint(equalToConstant: 228).isActive = true
+        stackView.addArrangedSubview(muteButton)
+
+        // Divider
+        let divider2 = NSBox()
+        divider2.boxType = .separator
+        divider2.translatesAutoresizingMaskIntoConstraints = false
+        divider2.widthAnchor.constraint(equalToConstant: 228).isActive = true
+        stackView.addArrangedSubview(divider2)
+
+        // Quit button
+        let quitBtn = NSButton(title: "Quit Mic Mute", target: self, action: #selector(quitClicked))
+        quitBtn.bezelStyle = .roundRect
+        quitBtn.setButtonType(.momentaryPushIn)
+        quitBtn.font = NSFont.systemFont(ofSize: 13)
+        quitBtn.translatesAutoresizingMaskIntoConstraints = false
+        quitBtn.widthAnchor.constraint(equalToConstant: 228).isActive = true
+        stackView.addArrangedSubview(quitBtn)
+
+        view.layoutSubtreeIfNeeded()
+    }
+
+    @objc private func deviceClicked(_ sender: NSButton) {
+        let id = AudioDeviceID(sender.tag)
+        onDeviceSelected?(id)
+    }
+
+    @objc private func muteClicked() {
+        onMuteToggled?()
+    }
+
+    @objc private func quitClicked() {
+        onQuit?()
+    }
+}
+
 // MARK: - Menubar Controller
 
-final class MenubarController: NSObject, NSMenuDelegate {
+final class MenubarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let popover = NSPopover()
+    private let popoverVC = PopoverViewController()
     private var selectedDeviceID: AudioDeviceID?
 
     override init() {
         super.init()
         selectedDeviceID = listInputDevices().first?.id
-        updateIcon()
+
+        popoverVC.onDeviceSelected = { [weak self] id in
+            self?.selectedDeviceID = id
+            self?.refreshPopover()
+            self?.updateIcon()
+        }
+        popoverVC.onMuteToggled = { [weak self] in
+            guard let self, let id = self.selectedDeviceID else { return }
+            let newState = !getMuteState(id)
+            if setMuteState(id, muted: newState) == noErr {
+                self.refreshPopover()
+                self.updateIcon()
+            }
+        }
+        popoverVC.onQuit = {
+            NSApplication.shared.terminate(nil)
+        }
+
+        popover.contentViewController = popoverVC
+        popover.behavior = .transient
+        popover.animates = true
+
         if let button = statusItem.button {
             button.target = self
-            button.action = #selector(toggleMenu(_:))
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.action = #selector(togglePopover(_:))
         }
+
+        updateIcon()
     }
 
     // MARK: Icon
 
     private func makeIcon(muted: Bool) -> NSImage? {
-        let glyph = muted ? "\u{F036D}" : "\u{F036C}"  // 󰍭 / 󰍬
+        let glyph = muted ? "\u{F036D}" : "\u{F036C}"
         let font = NSFont(name: "MesloLGSNF-Bold", size: 16) ?? NSFont.systemFont(ofSize: 16)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
@@ -133,94 +285,24 @@ final class MenubarController: NSObject, NSMenuDelegate {
     }
 
     private func updateIcon() {
-        let muted: Bool
-        if let id = selectedDeviceID {
-            muted = getMuteState(id)
-        } else {
-            muted = false
-        }
+        let muted = selectedDeviceID.map { getMuteState($0) } ?? false
         statusItem.button?.image = makeIcon(muted: muted)
     }
 
-    // MARK: Menu
-
-    @objc private func toggleMenu(_ sender: Any?) {
-        let menu = buildMenu()
-        menu.delegate = self
-        statusItem.menu = menu
-        statusItem.button?.performClick(nil)
-    }
-
-    func menuDidClose(_ menu: NSMenu) {
-        statusItem.menu = nil
-    }
-
-    private func buildMenu() -> NSMenu {
-        let menu = NSMenu()
-
-        // Device section label
-        let label = NSMenuItem(title: "Input Device", action: nil, keyEquivalent: "")
-        label.isEnabled = false
-        menu.addItem(label)
-
-        // Device list
-        let devices = listInputDevices()
-        for device in devices {
-            let item = NSMenuItem(
-                title: device.name,
-                action: #selector(selectDevice(_:)),
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.representedObject = device.id as AnyObject
-            item.state = device.id == selectedDeviceID ? .on : .off
-            menu.addItem(item)
-        }
-        if devices.isEmpty {
-            let none = NSMenuItem(title: "No input devices found", action: nil, keyEquivalent: "")
-            none.isEnabled = false
-            menu.addItem(none)
-        }
-
-        menu.addItem(.separator())
-
-        // Mute toggle item
-        let isMuted = selectedDeviceID.map { getMuteState($0) } ?? false
-        let toggleTitle = isMuted ? "\u{F036D}  Muted — click to unmute" : "\u{F036C}  Unmuted — click to mute"
-        let toggleItem = NSMenuItem(title: toggleTitle, action: #selector(toggleMute), keyEquivalent: "")
-        if selectedDeviceID != nil {
-            toggleItem.target = self
-        } else {
-            toggleItem.isEnabled = false
-        }
-        menu.addItem(toggleItem)
-
-        menu.addItem(.separator())
-
-        // Quit
-        let quit = NSMenuItem(
-            title: "Quit Mic Mute",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
-        )
-        menu.addItem(quit)
-
-        return menu
+    private func refreshPopover() {
+        popoverVC.update(devices: listInputDevices(), selectedDeviceID: selectedDeviceID)
     }
 
     // MARK: Actions
 
-    @objc private func selectDevice(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? AudioDeviceID else { return }
-        selectedDeviceID = id
-        updateIcon()
-    }
-
-    @objc private func toggleMute() {
-        guard let id = selectedDeviceID else { return }
-        let newState = !getMuteState(id)
-        if setMuteState(id, muted: newState) == noErr {
-            updateIcon()
+    @objc private func togglePopover(_ sender: Any?) {
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(sender)
+        } else {
+            refreshPopover()
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
         }
     }
 }
