@@ -2,20 +2,22 @@
 
 # Mic Mute Button
 
-A minimal native macOS app to toggle microphone mute with a single click. No Xcode required — just a single Swift source file compiled with `swiftc`.
+A minimal native macOS menubar app to toggle microphone mute with a single click. No Xcode required — just a single Swift source file compiled with `swiftc`.
 
 ## Features
 
-- Circle button UI: green (unmuted) / red (muted)
-- Dropdown to select between multiple input devices
+- Lives in the menubar — no Dock icon, no window
+- Click the menubar icon to open a popover panel
+- Select input device with visual checkmark highlight
+- Mute / unmute toggle with red/green indicator
 - Reads and sets hardware mute state via CoreAudio
-- Keyboard shortcut: Cmd+Q to quit
+- Falls back to volume scalar for devices without hardware mute support
 
 ## Requirements
 
 - macOS 12 or later
 - Xcode Command Line Tools (`xcode-select --install`)
-- [MesloLGS NF](https://github.com/romkatv/powerlevel10k#meslo-nerd-font-patched-for-powerlevel10k) font (optional — used for mic icons; falls back to system bold font)
+- [MesloLGS NF](https://github.com/romkatv/powerlevel10k#meslo-nerd-font-patched-for-powerlevel10k) font (optional — used for mic icons; falls back to system font)
 
 ## Build & Run
 
@@ -46,9 +48,41 @@ swiftc MicMuteApp.swift -framework AppKit -framework CoreAudio -o MicMuteApp
 ## How It Works
 
 - **CoreAudio** is used directly (no AVFoundation) to enumerate input devices and read/write `kAudioDevicePropertyMute` on the input scope.
-- **CircleButton** is a custom `NSView` subclass with a circular hit-test so clicks outside the circle are ignored.
-- The app runs as a regular (dock-visible) application via `NSApplication`.
+- **NSStatusItem** places the app in the macOS menubar with a Nerd Font mic glyph icon.
+- **NSPopover** shows a floating panel on click — stays open while interacting, closes on click-outside.
+- **PopoverViewController** builds the device list and mute toggle using `NSStackView` and `NSButton`.
 
 ## Known Limitations
 
-- Devices that don't support hardware mute (`kAudioDevicePropertyMute`) will silently ignore mute toggle calls. No software volume fallback is implemented.
+- Devices that don't support hardware mute fall back to volume scalar (set to 0.0 for mute).
+
+---
+
+## Release Notes
+
+### v2.0.0 — 2026-04-21
+
+**Menubar-only redesign**
+
+- Converted from a floating window app to a menubar-only app (no Dock icon)
+- Replaced window + CircleButton UI with an `NSPopover` panel
+- Popover stays open while interacting; closes when clicking outside
+- Device list shows checkmark + accent color + semibold font on selected device
+- Mute toggle button shows green (unmuted) / red (muted) with Nerd Font icons
+- Removed `MainViewController` and `CircleButton` classes
+
+### v1.1.0 — 2026-03-06
+
+**External mic support**
+
+- Added volume scalar fallback for devices that don't support hardware mute (`kAudioDevicePropertyMute`)
+- Fixes mute toggle being silently ignored on USB/external microphones
+
+### v1.0.0 — 2026-03-05
+
+**Initial release**
+
+- Single-window app with circle button UI (green = unmuted, red = muted)
+- Dropdown to select between multiple input devices
+- CoreAudio hardware mute via `kAudioDevicePropertyMute`
+- Single-file build with `swiftc`, no Xcode required
