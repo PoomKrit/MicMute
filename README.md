@@ -60,6 +60,12 @@ swiftc MicMuteApp.swift -framework AppKit -framework CoreAudio -o MicMuteApp
 
 ## Release Notes
 
+### v2.2.0 — 2026-04-22
+
+**Menubar icon color**
+
+- Icon turns red when muted, white when unmuted
+
 ### v2.1.0 — 2026-04-22
 
 **Popover layout refinement**
