@@ -60,6 +60,13 @@ swiftc MicMuteApp.swift -framework AppKit -framework CoreAudio -o MicMuteApp
 
 ## Release Notes
 
+### v2.1.0 — 2026-04-22
+
+**Popover layout refinement**
+
+- Moved mute toggle button to top of popover for faster access
+- Moved input device list below the toggle
+
 ### v2.0.0 — 2026-04-21
 
 **Menubar-only redesign**

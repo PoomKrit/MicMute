@@ -141,6 +141,28 @@ final class PopoverViewController: NSViewController {
     private func rebuild() {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
+        // Mute button
+        let isMuted = selectedDeviceID.map { getMuteState($0) } ?? false
+        let muteTitle = isMuted ? "\u{F036D}  Muted — click to unmute" : "\u{F036C}  Unmuted — click to mute"
+        muteButton.title = muteTitle
+        muteButton.bezelStyle = .roundRect
+        muteButton.setButtonType(.momentaryPushIn)
+        muteButton.font = NSFont.systemFont(ofSize: 13)
+        muteButton.contentTintColor = isMuted ? .systemRed : .systemGreen
+        muteButton.target = self
+        muteButton.action = #selector(muteClicked)
+        muteButton.isEnabled = selectedDeviceID != nil
+        muteButton.translatesAutoresizingMaskIntoConstraints = false
+        muteButton.widthAnchor.constraint(equalToConstant: 228).isActive = true
+        stackView.addArrangedSubview(muteButton)
+
+        // Divider
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        divider.widthAnchor.constraint(equalToConstant: 228).isActive = true
+        stackView.addArrangedSubview(divider)
+
         // Section label
         let label = NSTextField(labelWithString: "INPUT DEVICE")
         label.font = NSFont.systemFont(ofSize: 10, weight: .semibold)
@@ -168,28 +190,6 @@ final class PopoverViewController: NSViewController {
                 stackView.addArrangedSubview(btn)
             }
         }
-
-        // Divider
-        let divider = NSBox()
-        divider.boxType = .separator
-        divider.translatesAutoresizingMaskIntoConstraints = false
-        divider.widthAnchor.constraint(equalToConstant: 228).isActive = true
-        stackView.addArrangedSubview(divider)
-
-        // Mute button
-        let isMuted = selectedDeviceID.map { getMuteState($0) } ?? false
-        let muteTitle = isMuted ? "\u{F036D}  Muted — click to unmute" : "\u{F036C}  Unmuted — click to mute"
-        muteButton.title = muteTitle
-        muteButton.bezelStyle = .roundRect
-        muteButton.setButtonType(.momentaryPushIn)
-        muteButton.font = NSFont.systemFont(ofSize: 13)
-        muteButton.contentTintColor = isMuted ? .systemRed : .systemGreen
-        muteButton.target = self
-        muteButton.action = #selector(muteClicked)
-        muteButton.isEnabled = selectedDeviceID != nil
-        muteButton.translatesAutoresizingMaskIntoConstraints = false
-        muteButton.widthAnchor.constraint(equalToConstant: 228).isActive = true
-        stackView.addArrangedSubview(muteButton)
 
         // Divider
         let divider2 = NSBox()
