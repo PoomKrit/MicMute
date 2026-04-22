@@ -272,7 +272,7 @@ final class MenubarController: NSObject {
         let font = NSFont(name: "MesloLGSNF-Bold", size: 16) ?? NSFont.systemFont(ofSize: 16)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.labelColor
+            .foregroundColor: muted ? NSColor.systemRed : NSColor.white
         ]
         let str = NSAttributedString(string: glyph, attributes: attrs)
         let size = str.size()
